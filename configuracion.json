@@ -1,0 +1,42 @@
+[
+    {
+        "username": "matias", 
+        "password": "saitam", 
+        "imapIP": "192.168.56.102"
+    },
+    {
+        "username": "martin", 
+        "password": "nitram", 
+        "imapIP": "192.168.56.102"
+    },
+    {
+        "username": "eduardo", 
+        "password": "odraude", 
+        "imapIP": "192.168.56.102"
+    },
+    {
+        "username": "ariel", 
+        "password": "leira", 
+        "imapIP": "192.168.56.102"
+    },
+    {
+        "username": "lucia", 
+        "password": "aicul", 
+        "imapIP": "192.168.56.103"
+    },
+    {
+        "username": "sara", 
+        "password": "aras", 
+        "imapIP": "192.168.56.103"
+    },
+    {
+        "username": "clara", 
+        "password": "aralc", 
+        "imapIP": "192.168.56.103"
+    },
+    {
+        "username": "marta", 
+        "password": "atram", 
+        "imapIP": "192.168.56.103"
+    }
+]
