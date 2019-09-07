@@ -38,6 +38,8 @@ DEBUG = True
 PORT = 12000
 DATAGRAM_SIZE = 1024
 
+IP_POR_DEFECTO = "192.168.56.102"
+
 COMANDOS_DISPONIBLES = [
     'GET_USER'
 ]
@@ -75,7 +77,14 @@ def obtenerPosicionDeUsuario(usuarios, usuario):
 """ Crea la respuesta como string utilizando el objeto respuesta
 pasado por parametro """
 def crearRespuesta(respuesta):
-    return str(respuesta["numero_secuencia"])+"\n"+str(respuesta["codigo_error"])+"\n"+str(respuesta["mensaje"])
+    numero_secuencia = str(respuesta['numero_secuencia'])+"\n"
+    codigo_error = str(respuesta['codigo_error'])+"\n"
+    IP_IMAP = str(respuesta["IP_IMAP"])+"\n"
+    mensaje = str(respuesta["mensaje"])
+
+    string_respuesta = numero_secuencia+codigo_error+IP_IMAP+mensaje
+    
+    return string_respuesta
 
 """ 
 ==================================================================
@@ -102,6 +111,7 @@ while True:
     respuesta = {
         "numero_secuencia": -1, # Numero
         "codigo_error": -1, # Numero
+        "IP_IMAP": IP_POR_DEFECTO,
         "mensaje": "" # String
     }
 
@@ -113,7 +123,7 @@ while True:
     mensaje_credenciales = mensaje_procesado[1] if mensaje_procesado[1] else False
     if mensaje_cabezal:
 
-        if DEBUG: print("Procesando el cabezal...")
+        if DEBUG: print(str(datetime.datetime.now())+" Procesando el cabezal...")
 
         # Proceso el comando
         comando_procesado = re.findall(r'.*(?<=-)', mensaje_cabezal)
@@ -135,8 +145,8 @@ while True:
             error_solicitud = True
             respuesta["mensaje"] = "No se pudo obtener la secuencia"
             respuesta["codigo_error"] = 1
-
-        if DEBUG: print("Procesando las credenciales...")
+            
+        if DEBUG: print(str(datetime.datetime.now())+" Procesando las credenciales...")
 
         # Obtengo usuario y contraseña
         usuario = re.findall(r'.* ', mensaje_credenciales)
@@ -161,7 +171,7 @@ while True:
         # Proceso usuario y contraseña
         if not error_solicitud and tengo_usuario and tengo_contrasenia:
 
-            if DEBUG: print("Comparando las credenciales...")
+            if DEBUG: print(str(datetime.datetime.now())+" Comparando las credenciales...")
             
             # Obtener los usuarios del archivo configuracion.json
             import json
@@ -170,13 +180,17 @@ while True:
                 usuarios = json.load(archivo_json)
                 
                 posicion_ususario = obtenerPosicionDeUsuario(usuarios, usuario)
-                if(posicion_ususario):
+                
+                if(posicion_ususario is not False):
+                    # Existe usuario, comparo contrasenia
                     if(usuarios[posicion_ususario]["password"] == contrasenia):
                         respuesta["mensaje"] = "Coooorrecto!"
                         respuesta["codigo_error"] = 4
+                        respuesta["IP_IMAP"] = usuarios[posicion_ususario]["imapIP"]
                     else:
                         respuesta["mensaje"] = "Contraseña incorrecta"
                         respuesta["codigo_error"] = 3
+                        respuesta["IP_IMAP"] = usuarios[posicion_ususario]["imapIP"]
                 else:
                     respuesta["mensaje"] = "No existe el usuario ingresado"
                     respuesta["codigo_error"] = 2
@@ -184,8 +198,9 @@ while True:
     else:
         respuesta["mensaje"] = "Ha ocurrido un error al obtener el mensaje"
 
-    if DEBUG: print("Creando respuesta...")
-    string_respuesta = crearRespuesta(respuesta)
+    if DEBUG: print(str(datetime.datetime.now())+" Creando respuesta...")
 
+    string_respuesta = crearRespuesta(respuesta)
+    
     # Enviar la respuesta
     server_socket.sendto(bytes(string_respuesta, 'utf-8'), address)
