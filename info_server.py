@@ -40,9 +40,9 @@ DATAGRAM_SIZE = 1024
 
 IP_POR_DEFECTO = "192.168.56.102"
 
-COMANDOS_DISPONIBLES = [
+COMANDOS_DISPONIBLES = set([
     'GET_USER'
-]
+])
 
 """ 
 ====================================================================
@@ -126,22 +126,22 @@ while True:
         if DEBUG: print(str(datetime.datetime.now())+" Procesando el cabezal...")
 
         # Proceso el comando
-        comando_procesado = re.findall(r'.*(?<=-)', mensaje_cabezal)
-        
-        if comando_procesado[0] != None:
-            comando = comando_procesado[0]
-        else:
+        comando_procesado = re.findall(r'.*-', mensaje_cabezal)
+        comando = comando_procesado[0][:len(comando_procesado[0])-1]
+        if comando is None or comando not in COMANDOS_DISPONIBLES:
             error_solicitud = True
             respuesta["mensaje"] = "No se pudo obtener el comando"
             respuesta["codigo_error"] = 0
 
         # Proceso el numero de secuencia
         secuencia_procesada = re.findall(r'(?<=-).*', mensaje_cabezal)
+        numero_secuencia = secuencia_procesada[0]
+        try:
+            numero_secuencia = int(numero_secuencia)
+        except:
+            numero_secuencia = None
 
-        if not error_solicitud and secuencia_procesada[0] != None:
-            numero_secuencia = secuencia_procesada[0]
-            respuesta["numero_secuencia"] = int(numero_secuencia)
-        else:
+        if not error_solicitud and numero_secuencia is None:
             error_solicitud = True
             respuesta["mensaje"] = "No se pudo obtener la secuencia"
             respuesta["codigo_error"] = 1
@@ -157,14 +157,14 @@ while True:
         if not error_solicitud and usuario[0] != None:
             tengo_usuario = True
             usuario = usuario[0][:len(usuario[0])-1] # Podriamos usar un lookbehind para que no tome el espacio en blanco
-        else:
+        elif not error_solicitud:
             respuesta["mensaje"] = "No se pudo obtener el usuario"
             respuesta["codigo_error"] = 99
             
         if not error_solicitud and contrasenia[0] != None:
             tengo_contrasenia = True
             contrasenia = contrasenia[0][1:] # Podriamos usar un lookbehind para que no tome el espacio en blanco
-        else:
+        elif not error_solicitud:
             respuesta["mensaje"] = "No se pudo obtener la contrasenia"
             respuesta["codigo_error"] = 99
 
