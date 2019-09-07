@@ -6,7 +6,7 @@
 #include <pthread.h> 
 #include <stddef.h>
 
-#define PORT 3491
+#define PORT 3490
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
@@ -38,6 +38,9 @@ void *aux(struct arg_struct *args)
         if(is_closed == 0) {   //sino se quedaria bloqueado en el send que es bloqueante
             printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
             
+            // Crear socket
+            int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+            //send
             
             int i;
             for (i = 0; i < received_data_size; i++) {
@@ -89,10 +92,9 @@ void main()
 
         struct arg_struct *args_aster = &args;
         
+        char* mensaje = "Bienvenido!";        
+        int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
         pthread_create(&thr, NULL, (void*) aux, args_aster);
-        
-        
-    
         
         //primitiva CLOSE
         // close(socket_to_client);
