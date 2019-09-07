@@ -38,14 +38,14 @@ void main()
       //primitiva ACCEPT
       struct sockaddr_in client_addr;
       socklen_t client_addr_size = sizeof client_addr;
-    /*  int socket_to_client = accept(
+      int socket_to_client = accept(
 	     server_socket, 
 		 (struct sockaddr *)&client_addr, &client_addr_size
       );
-   */
+   
    
       //primitiva RECEIVE
-   /*   char* data = malloc(MAX_MSG_SIZE);
+      char* data = malloc(MAX_MSG_SIZE);
       int data_size = MAX_MSG_SIZE;
       int received_data_size = recv(socket_to_client, data, data_size, 0);
       
@@ -54,18 +54,17 @@ void main()
       int i;
       for (i = 0; i < received_data_size; i++) {
          data[i] = toupper(data[i]);
-      }*/
+      }
       
       //primitiva SEND
       
-    /*  data = "Bienvenido holis";
       int sent_data_size = send(socket_to_client, data, received_data_size, 0);
-      printf("Enviado al cliente (%d bytes): %s\n", sent_data_size, data);*/
+      printf("Enviado al cliente (%d bytes): %s\n", sent_data_size, data);
       
       //primitiva CLOSE
-      //close(socket_to_client);
+      close(socket_to_client);
    }
 
    //CLOSE del socket que espera conexiones
-   //close(server_socket);
+   close(server_socket);
 }
