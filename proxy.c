@@ -1,16 +1,21 @@
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netdb.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h> 
 #include <stddef.h>
+#include <regex.h>
 
-#define PORT 3490
+#define PORT 3499
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
 #define DEBUG 1
+#define IP_INFO_SERVER "localhost"
+#define PUERTO_INFO_SERVER "12000"
 
 #if !defined(NULL)
     #define NULL ((void*)0)
@@ -20,6 +25,22 @@ struct arg_struct {
     int socket_to_client;
     pthread_t thr;
 };
+
+char* enviarAInfoServer(mensaje) {
+    int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+            
+    struct addrinfo hints, *res;
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_DGRAM;
+    getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
+    
+    char* udp_mensaje = "GET_USER-2\nmatias mathias\n";
+    int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+    
+    char* udp_respuesta = malloc(MAX_MSG_SIZE);
+    int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
+    return udp_respuesta;
+}
 
 /* Funcion auxiliar para manejar un hilo con un socket particular */
 void *aux(struct arg_struct *args) 
@@ -38,9 +59,19 @@ void *aux(struct arg_struct *args)
         if(is_closed == 0) {   //sino se quedaria bloqueado en el send que es bloqueante
             printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
             
-            // Crear socket
-            int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
-            //send
+            // Procesar lo recibido del cliente
+            int encontre_espacio = 0;
+            int index = 0;
+            while(!encontre_espacio && index < 16) { // SEteamos en 16 para que eventualmente no tenga que recorrer una tira larga sin encontrar un espacio
+                if(data[index] == ' ') {
+                    encontre_espacio = 1;
+                }
+                index++;
+            }
+            
+            // Crear socket UDP y consultar por el usuario
+            char* respuesta = enviarAInfoServer(mensaje);
+            printf(respuesta);
             
             int i;
             for (i = 0; i < received_data_size; i++) {
@@ -92,7 +123,7 @@ void main()
 
         struct arg_struct *args_aster = &args;
         
-        char* mensaje = "Bienvenido!";        
+        char* mensaje = "Bienvenido!\n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
         pthread_create(&thr, NULL, (void*) aux, args_aster);
         
@@ -103,7 +134,6 @@ void main()
    //CLOSE del socket que espera conexiones
    close(welcome_socket);
 }
-
 
 
 
