@@ -34,7 +34,7 @@ char* enviarAInfoServer(mensaje) {
     hints.ai_socktype = SOCK_DGRAM;
     getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
     
-    char* udp_mensaje = "GET_USER-2\nmatias mathias\n";
+    char* udp_mensaje = mensaje;
     int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
     
     char* udp_respuesta = malloc(MAX_MSG_SIZE);
@@ -70,6 +70,7 @@ void *aux(struct arg_struct *args)
             }
             
             // Crear socket UDP y consultar por el usuario
+            char* mensaje = "GET_USER-2\nmatias mathias\n";
             char* respuesta = enviarAInfoServer(mensaje);
             printf(respuesta);
             
