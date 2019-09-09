@@ -8,6 +8,7 @@
 #include <pthread.h> 
 #include <stddef.h>
 #include <regex.h>
+#include <arpa/inet.h>
 
 #define PORT 3499
 #define MY_IP "127.0.0.1"
@@ -26,9 +27,9 @@ struct arg_struct {
     pthread_t thr;
 };
 
-char* enviarAInfoServer(mensaje) {
+/*char* enviarAInfoServer(char* mensaje) {  
     int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
-            
+        
     struct addrinfo hints, *res;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_DGRAM;
@@ -40,7 +41,7 @@ char* enviarAInfoServer(mensaje) {
     char* udp_respuesta = malloc(MAX_MSG_SIZE);
     int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
     return udp_respuesta;
-}
+}*/
 
 /* Funcion auxiliar para manejar un hilo con un socket particular */
 void *aux(struct arg_struct *args) 
@@ -68,11 +69,27 @@ void *aux(struct arg_struct *args)
                 }
                 index++;
             }
-            
+             
             // Crear socket UDP y consultar por el usuario
             char* mensaje = "GET_USER-2\nmatias mathias\n";
-            char* respuesta = enviarAInfoServer(mensaje);
-            printf(respuesta);
+            //char* respuesta = enviarAInfoServer(mensaje);
+            
+            int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+        
+            struct addrinfo hints, *res;
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_DGRAM;
+            getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
+            
+            char* udp_mensaje = mensaje;
+            int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+            
+            char* udp_respuesta = malloc(MAX_MSG_SIZE);
+            int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
+            //return udp_respuesta;
+            
+            
+            printf(udp_respuesta);
             
             int i;
             for (i = 0; i < received_data_size; i++) {
