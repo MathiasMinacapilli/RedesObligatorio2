@@ -71,10 +71,10 @@ def obtenerPosicionDeUsuario(usuarios, usuario):
 """ Crea la respuesta como string utilizando el objeto respuesta
 pasado por parametro """
 def crearRespuesta(respuesta):
-    error = 'NO ' if respuesta['error'] else 'OK '
-    IP_IMAP = str(respuesta["IP_IMAP"])+"\n"
+    error = 'NO' if respuesta['error'] else 'OK'
+    IP_IMAP = " "+str(respuesta["IP_IMAP"]) if str(respuesta["IP_IMAP"]) != "" else ""
 
-    string_respuesta = error+IP_IMAP
+    string_respuesta = error+IP_IMAP+"\n"
     
     return string_respuesta
 
@@ -156,6 +156,7 @@ while True:
                 else:
                     if DEBUG: print(str(datetime.datetime.now())+" NO existe usuario en el registro...")             
                     respuesta["error"] = True
+                    respuesta["IP_IMAP"] = ''
        
     else:
         respuesta["error"] = True
