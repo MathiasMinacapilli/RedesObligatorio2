@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <regex.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 #define PORT 3499
 #define MY_IP "127.0.0.1"
@@ -18,7 +19,7 @@
 #define IP_INFO_SERVER "localhost"
 #define PUERTO_INFO_SERVER "12000"
 #define PORT_IMAP "143"
-#define IP_IMAP1 "192.168.56.101"
+#define IP_IMAP1 "192.168.56.102"
 
 #if !defined(NULL)
     #define NULL ((void*)0)
@@ -75,11 +76,9 @@ int conectarse_IMAP(char* IP_IMAP){
     return(socket_IMAP);
 }
 
-void IMAP_cliente(struct sock sockets){
-     printf("ENTRE A IMAP_CLIENTE\n");
-     fflush(stdout);
-    int socket_IMAP = sockets.socket_IMAP;
-    int client_socket = sockets.client_socket;
+void IMAP_cliente(struct sock* sockets){
+    int socket_IMAP = sockets->socket_IMAP;
+    int client_socket = sockets->client_socket;
     char* data = malloc(MAX_MSG_SIZE);
     int data_size = MAX_MSG_SIZE;
     int received_data_size;
@@ -89,16 +88,13 @@ void IMAP_cliente(struct sock sockets){
         send(client_socket, data, received_data_size, 0);
         printf("Enviado al cliente (%d bytes): %s\n", received_data_size, data);
         //Chequear si hay BYE
-        
     }
     close(socket_IMAP);
 }
 
-void Cliente_IMAP(struct sock sockets){
-         printf("ENTRE A CLIENTE_IMAP\n");
-     fflush(stdout);
-    int socket_IMAP = sockets.socket_IMAP;
-    int client_socket = sockets.client_socket;
+void Cliente_IMAP(struct sock* sockets){
+    int socket_IMAP = sockets->socket_IMAP;
+    int client_socket = sockets->client_socket;
     char* data = malloc(MAX_MSG_SIZE);
     int data_size = MAX_MSG_SIZE;
     int received_data_size;
@@ -172,8 +168,8 @@ void *aux(struct arg_struct *args)
                 printf("ENTRE AL ELSE");
                 fflush(stdout);
                 encontre_usuario = 1; /**/
-                int socket_IMAP = conectarse_IMAP(/*getIP(udp_respuesta)*/"192.168.56.101");
-                 printf("CONECTE AL IMAP");
+                int socket_IMAP = conectarse_IMAP(/*getIP(udp_respuesta)*/"192.168.56.102");
+                printf("CONECTE AL IMAP");
                 fflush(stdout);
                 struct sock sockets;
                 sockets.client_socket = args->socket_to_client;
@@ -182,7 +178,9 @@ void *aux(struct arg_struct *args)
                 pthread_t thr1;
                 pthread_t thr2;
                 printf("CREANDO THREADS\n");
+		        //"ME FALTA REENVIAR EL PRIMER MENSAJE AL IMAP!!!!!!!!!!!!!!!"
                 fflush(stdout);
+		        send(socket_IMAP, data, received_data_size, 0);
                 pthread_create(&thr1, NULL, (void*) Cliente_IMAP, sockets_aster);
                 pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster); 
                 while(1){
