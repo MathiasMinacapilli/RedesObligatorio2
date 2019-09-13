@@ -4,23 +4,16 @@
 """ 
 El proxy le hace peticiones, consultas, a info_server. 
 El formato de la consulta es el siguiente:
-	GET_USER-seq_number- \n
-    user_example password_example \n
+	GET_USER username \n
 
 Se muestra a continuación el formato de la respuesta:
-	seq_number \n
-    error_code [Si error_code == 2] imap_server_ip
+	[OK | NO] imap_server_ip \n
 
-Existen 3 tipos de respuesta de info_server:
-- Usuario no existe: se devuelve el código de error 0 
-    que indica que el usuario consultado no existe.
-- Contraseña incorrecta: se devuelve el código 1 
-    que indica que la contraseña no es correcta para el usuario ingresado.
-- Comando no existe: se devuelve el código 2
-    que indica que no existe el comando enviado.
-- Correcto: se devuelve el código de error 3 
-    que indica que el usuario consultado no existe y 
-    además se retorna la IP del servidor IMAP al que debe consultar el usuario.
+Retorna OK y la IP del servidor IMAP al que consultar por el usuario si 
+existe el usuario enviado.
+Retorna NO si no existe el usuario y retorna una IP de un servidor IMAP 
+configurado por defecto.
+
  """
 
 import os
@@ -35,6 +28,7 @@ import datetime
 """
 DEBUG = True
 
+IP = "127.0.0.1"
 PORT = 12000
 DATAGRAM_SIZE = 1024
 
@@ -77,12 +71,10 @@ def obtenerPosicionDeUsuario(usuarios, usuario):
 """ Crea la respuesta como string utilizando el objeto respuesta
 pasado por parametro """
 def crearRespuesta(respuesta):
-    numero_secuencia = str(respuesta['numero_secuencia'])+"\n"
-    codigo_error = str(respuesta['codigo_error'])+"\n"
+    error = 'NO ' if respuesta['error'] else 'OK '
     IP_IMAP = str(respuesta["IP_IMAP"])+"\n"
-    mensaje = str(respuesta["mensaje"])
 
-    string_respuesta = numero_secuencia+codigo_error+IP_IMAP+mensaje
+    string_respuesta = error+IP_IMAP
     
     return string_respuesta
 
@@ -96,10 +88,10 @@ limpiarPantalla()
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_socket.bind(('', PORT))
 
-if DEBUG: print("Servidor escuchando...")
+if DEBUG: print("Servidor escuchando en el puerto "+str(PORT)+"...")
 
 while True:
-
+    
     # Recibo el datagrama
     mensaje, address = server_socket.recvfrom(DATAGRAM_SIZE)
     mensaje = str(mensaje, 'utf-8')
@@ -107,71 +99,46 @@ while True:
     print("=================================================================================================")
     if DEBUG: print(str(datetime.datetime.now())+" Atendiendo la solicitud (IP, puerto): "+str(address)+"...")
 
-    # Defino la estructura de mi respuesta
+    # Estructura de mi respuesta
     respuesta = {
-        "numero_secuencia": -1, # Numero
-        "codigo_error": -1, # Numero
-        "IP_IMAP": IP_POR_DEFECTO,
-        "mensaje": "" # String
+        "error": False, # Numero
+        "IP_IMAP": IP_POR_DEFECTO, # String
     }
 
     error_solicitud = False
 
     # Proceso el mensaje
     mensaje_procesado = re.findall(r'.*\n', mensaje)
-    mensaje_cabezal = mensaje_procesado[0] if mensaje_procesado[0] else False
-    mensaje_credenciales = mensaje_procesado[1] if mensaje_procesado[1] else False
-    if mensaje_cabezal:
+    mensaje = mensaje_procesado[0] if mensaje_procesado[0] else False
+    if mensaje:
 
-        if DEBUG: print(str(datetime.datetime.now())+" Procesando el cabezal...")
+        if DEBUG: print(str(datetime.datetime.now())+" Procesando el mensaje...")
 
         # Proceso el comando
-        comando_procesado = re.findall(r'.*-', mensaje_cabezal)
-        comando = comando_procesado[0][:len(comando_procesado[0])-1]
+        comando_procesado = re.findall(r'^.* ', mensaje)
+        comando = comando_procesado[0][:len(comando_procesado[0])-1] # -1 para olvidarse del espacio
         if comando is None or comando not in COMANDOS_DISPONIBLES:
+            respuesta["error"] = True
             error_solicitud = True
-            respuesta["mensaje"] = "No se pudo obtener el comando"
-            respuesta["codigo_error"] = 0
 
-        # Proceso el numero de secuencia
-        secuencia_procesada = re.findall(r'(?<=-).*', mensaje_cabezal)
-        numero_secuencia = secuencia_procesada[0]
-        try:
-            numero_secuencia = int(numero_secuencia)
-        except:
-            numero_secuencia = None
+        if DEBUG: print(str(datetime.datetime.now())+" Procesando el usuario...")
 
-        if not error_solicitud and numero_secuencia is None:
-            error_solicitud = True
-            respuesta["mensaje"] = "No se pudo obtener la secuencia"
-            respuesta["codigo_error"] = 1
-            
-        if DEBUG: print(str(datetime.datetime.now())+" Procesando las credenciales...")
-
-        # Obtengo usuario y contraseña
-        usuario = re.findall(r'.* ', mensaje_credenciales)
+        # Obtengo usuario
+        usuario = re.findall(r' .*$', mensaje)
         tengo_usuario =  False
-        contrasenia = re.findall(r' .*$', mensaje_credenciales)
-        tengo_contrasenia = False
         
         if not error_solicitud and usuario[0] != None:
             tengo_usuario = True
-            usuario = usuario[0][:len(usuario[0])-1] # Podriamos usar un lookbehind para que no tome el espacio en blanco
+            usuario = usuario[0][1:len(usuario[0])] # Podriamos usar un lookbehind para que no tome el espacio en blanco
+            if DEBUG: print(str(datetime.datetime.now())+"Obtenido el nombre de usuario: "+usuario+". Consultando datos...")
         elif not error_solicitud:
-            respuesta["mensaje"] = "No se pudo obtener el usuario"
-            respuesta["codigo_error"] = 99
-            
-        if not error_solicitud and contrasenia[0] != None:
-            tengo_contrasenia = True
-            contrasenia = contrasenia[0][1:] # Podriamos usar un lookbehind para que no tome el espacio en blanco
-        elif not error_solicitud:
-            respuesta["mensaje"] = "No se pudo obtener la contrasenia"
-            respuesta["codigo_error"] = 99
+            respuesta["error"] = True
 
-        # Proceso usuario y contraseña
-        if not error_solicitud and tengo_usuario and tengo_contrasenia:
+        
+        # Proceso usuario
+        if not error_solicitud and tengo_usuario:
 
-            if DEBUG: print(str(datetime.datetime.now())+" Comparando las credenciales...")
+            if DEBUG: print(str(datetime.datetime.now())+" Buscando usuario en el registro...")
             
             # Obtener los usuarios del archivo configuracion.json
             import json
@@ -182,21 +149,16 @@ while True:
                 posicion_ususario = obtenerPosicionDeUsuario(usuarios, usuario)
                 
                 if(posicion_ususario is not False):
-                    # Existe usuario, comparo contrasenia
-                    if(usuarios[posicion_ususario]["password"] == contrasenia):
-                        respuesta["mensaje"] = "Coooorrecto!"
-                        respuesta["codigo_error"] = 4
-                        respuesta["IP_IMAP"] = usuarios[posicion_ususario]["imapIP"]
-                    else:
-                        respuesta["mensaje"] = "Contraseña incorrecta"
-                        respuesta["codigo_error"] = 3
-                        respuesta["IP_IMAP"] = usuarios[posicion_ususario]["imapIP"]
+                    # Existe usuario           
+                    if DEBUG: print(str(datetime.datetime.now())+" Existe usuario en el registro...")             
+                    respuesta["error"] = False
+                    respuesta["IP_IMAP"] = usuarios[posicion_ususario]["imapIP"]
                 else:
-                    respuesta["mensaje"] = "No existe el usuario ingresado"
-                    respuesta["codigo_error"] = 2
-            
+                    if DEBUG: print(str(datetime.datetime.now())+" NO existe usuario en el registro...")             
+                    respuesta["error"] = True
+       
     else:
-        respuesta["mensaje"] = "Ha ocurrido un error al obtener el mensaje"
+        respuesta["error"] = True
 
     if DEBUG: print(str(datetime.datetime.now())+" Creando respuesta...")
 
