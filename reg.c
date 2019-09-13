@@ -38,4 +38,3 @@ int main(int argc, char const *argv[])
     printf("%s", usuario);
 return 0;
 }
-
