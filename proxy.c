@@ -10,8 +10,9 @@
 #include <regex.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <sys/time.h>
 
-#define PORT 3499
+#define PORT 3490
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
@@ -87,7 +88,6 @@ char* get_usuario_to_info_server(char* message){
         mensaje[y+9] = usuario[y];
     }
     mensaje[largo+9] = '\n';
-    
     if(encontre_usuario==0){
         return (mensaje = "GET_USER error\n");
     }
@@ -105,7 +105,7 @@ int conectarse_IMAP(char* IP_IMAP){
     memset(&hints, 0 , sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
-    getaddrinfo(/*IP_IMAP*/IP_IMAP1, PORT_IMAP, &hints, &res); // DEberia pasar IP_IMAP (la pasada por parametro) el primer parametro de la llamada
+    getaddrinfo(IP_IMAP, PORT_IMAP, &hints, &res); // DEberia pasar IP_IMAP (la pasada por parametro) el primer parametro de la llamada
     
     //me conecto al IMAP 
     
@@ -126,14 +126,16 @@ void IMAP_cliente(struct sock* sockets){
     char* data = malloc(MAX_MSG_SIZE);
     int data_size = MAX_MSG_SIZE;
     int received_data_size;
-    while(/*NO HAY BYE EN DATA AGARRADA*/1){
+    int encontre_bye = 0;
+    while(encontre_bye == 0){
         received_data_size = recv(socket_IMAP, data, data_size, 0);
         printf("Recibido del IMAP (%d bytes): %s\n", received_data_size, data);
         send(client_socket, data, received_data_size, 0);
         printf("Enviado al cliente (%d bytes): %s\n", received_data_size, data);
-        //Chequear si hay BYE
+        if(strstr(data, "* BYE") != NULL){
+            encontre_bye = 1;
+        }
     }
-    close(socket_IMAP);
 }
 
 void Cliente_IMAP(struct sock* sockets){
@@ -147,8 +149,36 @@ void Cliente_IMAP(struct sock* sockets){
         printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
         send(socket_IMAP, data, received_data_size,0);
         printf("Enviado al IMAP (%d bytes): %s\n", received_data_size, data);
-    }   
+    }  
+}
+
+char* getIP(char* udp_respuesta){
+    char * source = udp_respuesta;
+    int length = (int)strlen(source);
+    int i = 3;
+    int encontre_IP = 0;
+    int cant_espacios = 1;
     
+    int j = i;
+    while((j<length) && (source[j] != ' ') && (source[j] != '\n')){
+        j++;
+    }
+    
+    int largo = j-i;
+    char* ip = malloc(largo);
+    
+    for(int k=i; k<j; k++){
+        ip[k-i] = source[k];        
+    }
+    printf("ADENTRO DE LA FUNCION GET IP\n");
+    printf("%s",ip);
+    char* devolver = malloc(17);
+    for(int iter=0; iter<17; iter++){
+        devolver[iter] = ip[iter];
+    }
+    printf("IMPRIMO LO QUE DEVUELVO adentro FUNCION\n");
+    printf("%s",devolver);
+    return (devolver);
 }
 
 /* Funcion auxiliar para manejar un hilo con un socket particular */
@@ -157,16 +187,42 @@ void *aux(struct arg_struct *args){
     int estoy_conectado_a_IMAP = 0;
     int estoy_logueado = 0;
     int socket_IMAP;
+    int cantidad_pqts_enviado;
     while(is_closed == 0 && estoy_logueado == 0){
-
+        cantidad_pqts_enviado = 0;
         //Recibo un mensaje del cliente        
         char* data = malloc(MAX_MSG_SIZE);
         int data_size = MAX_MSG_SIZE;
+        
+        // timeout en el udp_socket
+        struct timeval timeout_client;      
+        timeout_client.tv_sec = 180;
+        timeout_client.tv_usec = 0;
+
+        //SO_RCVTIMEO	      set timeout value	for input
+        if (setsockopt (args->socket_to_client, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout_client,
+                sizeof(timeout_client)) < 0)
+        error("setsockopt failed\n");
+
+        //SO_SNDTIMEO	      set timeout value	for output
+        if (setsockopt (args->socket_to_client, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout_client,
+                sizeof(timeout_client)) < 0)
+        error("setsockopt failed\n");
+        
         int received_data_size = recv(args->socket_to_client, data, data_size, 0);
 
         //si el socket esta cerrado cuando es 0
-        if(received_data_size == 0){ 
+        if(received_data_size == -1){ 
             is_closed = 1;
+            //Si Cliente no se loguea y queda inactivo, cierro la conexion, libero data y cierro
+            char* disconnect_por_inactividad = "* BYE Disconnected for inactivity.\n";
+            int size_disconnect = strlen(disconnect_por_inactividad);
+            send(args->socket_to_client, disconnect_por_inactividad, size_disconnect, 0);
+            free(data);
+            close(args->socket_to_client);
+            printf("Socket cerrado\n");
+            //pthread_cancel(args->thr);
+            pthread_exit(args->thr);
         }
 
         // Ejecutar procesos si no fue cerrado el socket
@@ -174,13 +230,28 @@ void *aux(struct arg_struct *args){
 
             printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
 
-            char* mensaje = get_usuario_to_info_server(data);
+            
             //Aca hay que buscar en lo recibido un nombre de usuario, chequear que si es un mensaje roto me de algo para que le info_server responda "NO"
             //char* mensaje = buscar_nombre_usuario(data);
 
             //Creamos socket UDP y cosultamos por el usuario
 
             int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
+            
+            // timeout en el udp_socket
+            struct timeval timeout;      
+            timeout.tv_sec = 3;
+            timeout.tv_usec = 0;
+
+            //SO_RCVTIMEO	      set timeout value	for input
+            if (setsockopt (udp_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
+                    sizeof(timeout)) < 0)
+            error("setsockopt failed\n");
+
+            //SO_SNDTIMEO	      set timeout value	for output
+            if (setsockopt (udp_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
+                    sizeof(timeout)) < 0)
+            error("setsockopt failed\n");
         
             struct addrinfo hints, *res;
             hints.ai_family = AF_INET;
@@ -189,23 +260,30 @@ void *aux(struct arg_struct *args){
             
             //char* mensaje = "GET-USER matias\n";
             //ACA DEBERIAMOS MANDARLO UN PAR DE VECES Y SI NO NOS RESPONDE DECIMOS QUE CERRO EL INFO SERVER
+            char* mensaje = get_usuario_to_info_server(data);
             char* udp_mensaje = mensaje;
-            int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+           
             
             char* udp_respuesta = malloc(MAX_MSG_SIZE);
-            int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
-
-            //si el info server esta cerrado is_closed == 1
-            
-            //Si el info server esta cerrado, cierro la conexion
-            if(is_closed == 1){
+            int recibi = 0;
+            while(cantidad_pqts_enviado < 3 && recibi == 0){
+                printf("Enviando paquete a info_server\n");
+                int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+                int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
+                printf(udp_respuesta);
+                if(udp_tamanio_recibido == -1) { 
+                    cantidad_pqts_enviado++;
+                } else {
+                    recibi = 1;
+                }
+            }
+            if(cantidad_pqts_enviado == 3){     //Si envie el paquete al info_server 3 veces y no responde, asumo que esta caido
                 printf("Socket cerrado\n");
                 close(args->socket_to_client);
-                pthread_cancel(args->thr);
+                pthread_exit(args->thr);                
             }
-            
-            printf("%c%c",udp_respuesta[0], udp_respuesta[1]);
 
+            printf("%c%c",udp_respuesta[0], udp_respuesta[1]);
 
 
             if(udp_respuesta[0] == 'N'){            //Si la respuesta arranca con N es porque me responde NO
@@ -238,8 +316,9 @@ void *aux(struct arg_struct *args){
             else{
                 printf("ENTRE PAL ELSE\n");
                 //Si el info_server dio alguna respuesta
-                //char* IP_IMAP = getIP(udp_respuesta);
-                char* IP_IMAP = "192.168.56.101";
+                char* IP_IMAP = getIP(udp_respuesta);
+                printf("%s",IP_IMAP);
+                //char* IP_IMAP = "192.168.56.101";
                 if(estoy_conectado_a_IMAP == 0){
                     //Si no estoy conectado a ningun IMAP, me conecto al que me corresponde
                     estoy_conectado_a_IMAP = 1;
@@ -259,22 +338,26 @@ void *aux(struct arg_struct *args){
                 send(args->socket_to_client, data, data_size, 0);
                 if(strstr(data, "Logged in") != NULL){
                     //Si me loguee bien
+                    
+                    estoy_logueado = 1;
 
                     //Creo estructuras para pasarle los sockets a los threads
                     struct sock sockets;
                     sockets.client_socket = args->socket_to_client;
                     sockets.socket_IMAP = socket_IMAP;
                     struct sock *sockets_aster = &sockets;
+                    printf("CREANDO THREADS\n");
                     pthread_t thr1;
                     pthread_t thr2;
 
                     //Creo los threads que van a servir para comunicar el cliente con el IMAP
                     pthread_create(&thr1, NULL, (void*) Cliente_IMAP, sockets_aster);
-                    pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster); 
-                    while(1){
-                    /*Lo dejo trancado aca y que se acabe cuando alguien se desconecte vapai
-                     Seria meter un join aca o alguna chantada de esas*/
-                    }                
+                    pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster);
+                    printf("ANTES DEL JOIN\n");
+                    pthread_join(thr2, NULL);
+                    printf("DESPUES DEL JOIN\n");
+                    pthread_cancel(thr1);
+                    printf("DESPUES DEL CANCEL\n");
                 } else {
                     if(strstr(data, "* BYE") != NULL){
                         //Si el servidor IMAP cerro la conexion

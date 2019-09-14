@@ -2,12 +2,12 @@
     {
         "username": "matias", 
         "password": "saitam", 
-        "imapIP": "192.168.56.102"
+        "imapIP": "192.168.56.101"
     },
     {
         "username": "martin", 
         "password": "nitram", 
-        "imapIP": "192.168.56.102"
+        "imapIP": "192.168.56.101"
     },
     {
         "username": "eduardo", 
