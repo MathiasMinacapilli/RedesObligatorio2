@@ -14,7 +14,7 @@
 
 #define DEBUG 1
 
-#define PORT 3499
+#define PORT 3490
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
@@ -283,7 +283,7 @@ void *aux(struct arg_struct *args){
                 if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
                 
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
-                printf("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
+                
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
                 
                 if(udp_tamanio_recibido == -1) { 
