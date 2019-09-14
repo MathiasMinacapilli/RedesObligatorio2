@@ -70,3 +70,15 @@ print("---------------------\n")
 print("Respuesta:\n")
 message3 = bytes(peticion, 'utf-8')
 makeRequest(message3)
+
+print("==================================================================")
+
+# Prueba 3
+# Usuario existe en el segundo IMAP
+print("Prueba 4: Usuario rompe todo\n")
+peticion = 'GET_USER matais'
+print("Peticion: "+peticion)
+print("---------------------\n")
+print("Respuesta:\n")
+message4 = bytes(peticion, 'utf-8')
+makeRequest(message4)
