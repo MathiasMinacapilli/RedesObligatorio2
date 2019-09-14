@@ -12,31 +12,31 @@
     {
         "username": "eduardo", 
         "password": "odraude", 
-        "imapIP": "192.168.56.102"
+        "imapIP": "192.168.56.101"
     },
     {
         "username": "ariel", 
         "password": "leira", 
-        "imapIP": "192.168.56.102"
+        "imapIP": "192.168.56.101"
     },
     {
         "username": "lucia", 
         "password": "aicul", 
-        "imapIP": "192.168.56.103"
+        "imapIP": "192.168.56.102"
     },
     {
         "username": "sara", 
         "password": "aras", 
-        "imapIP": "192.168.56.103"
+        "imapIP": "192.168.56.102"
     },
     {
         "username": "clara", 
         "password": "aralc", 
-        "imapIP": "192.168.56.103"
+        "imapIP": "192.168.56.102"
     },
     {
         "username": "marta", 
         "password": "atram", 
-        "imapIP": "192.168.56.103"
+        "imapIP": "192.168.56.102"
     }
 ]

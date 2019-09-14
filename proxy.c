@@ -35,23 +35,6 @@ struct sock{
     int client_socket;
     int socket_IMAP;
 };
-/*char* enviarAInfoServer(char* mensaje) {  
-    int udp_socket = socket(AF_INET, SOCK_DGRAM, 0);
-        
-    struct addrinfo hints, *res;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
-    getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
-    
-    char* udp_mensaje = mensaje;
-    int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
-    
-    char* udp_respuesta = malloc(MAX_MSG_SIZE);
-    int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
-    return udp_respuesta;
-}*/
-
-/*Funcion que manda los datos enviados por el IMAP al cliente*/
 
 
 char* get_usuario_to_info_server(char* message){
@@ -349,12 +332,12 @@ void *aux(struct arg_struct *args){
                     printf("CREANDO THREADS\n");
                     pthread_t thr1;
                     pthread_t thr2;
-
+                    void* retval;
                     //Creo los threads que van a servir para comunicar el cliente con el IMAP
                     pthread_create(&thr1, NULL, (void*) Cliente_IMAP, sockets_aster);
                     pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster);
                     printf("ANTES DEL JOIN\n");
-                    pthread_join(thr2, NULL);
+                    pthread_join(thr2, (void*) retval);
                     printf("DESPUES DEL JOIN\n");
                     pthread_cancel(thr1);
                     printf("DESPUES DEL CANCEL\n");
