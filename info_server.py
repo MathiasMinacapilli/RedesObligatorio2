@@ -130,7 +130,7 @@ while True:
         if not error_solicitud and usuario[0] != None:
             tengo_usuario = True
             usuario = usuario[0][1:len(usuario[0])] # Podriamos usar un lookbehind para que no tome el espacio en blanco
-            if DEBUG: print(str(datetime.datetime.now())+"Obtenido el nombre de usuario: "+usuario+". Consultando datos...")
+            if DEBUG: print(str(datetime.datetime.now())+" Obtenido el nombre de usuario: "+usuario+". Consultando datos...")
         elif not error_solicitud:
             respuesta["error"] = True
 

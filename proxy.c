@@ -467,7 +467,7 @@ void main()
 
         struct arg_struct *args_aster = &args;
         
-        char* mensaje = "Bienvenido!\n";        
+        char* mensaje = "* OK Bienvenido IMAP4rev1 Fing \n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
         
         if(DEBUG) printf("[main-%d] Enviado mensaje de bienvenida al usuario...\n", socket_to_client);
