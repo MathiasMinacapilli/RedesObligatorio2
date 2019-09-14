@@ -14,7 +14,7 @@
 
 #define DEBUG 1
 
-#define PORT 3490
+#define PORT 3499
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
@@ -128,6 +128,8 @@ void IMAP_cliente(struct sock* sockets){
         if(strstr(data, "* BYE") != NULL){
             if(DEBUG) printf("[IMAP_cliente-%d] IMAP cerró la conexión...\n", client_socket);
             encontre_bye = 1;
+            void * algo;
+            pthread_exit(algo);
         }
     }
 }
@@ -281,6 +283,7 @@ void *aux(struct arg_struct *args){
                 if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
                 
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+                printf("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n");
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
                 
                 if(udp_tamanio_recibido == -1) { 
@@ -460,12 +463,12 @@ void main()
         int socket_to_client = accept(welcome_socket, (struct sockaddr *)&client_addr, &client_addr_size);
         
         if(DEBUG) printf("[main-%d] Cliente conectado en el socket %d\n", socket_to_client, socket_to_client);
-        
-        struct arg_struct args;
-        args.socket_to_client = socket_to_client;
-        args.thr = thr;
+        int tamanio_arg_struct = sizeof(struct arg_struct);
+        struct arg_struct *args = malloc(tamanio_arg_struct);
+        args->socket_to_client = socket_to_client;
+        args->thr = thr;
 
-        struct arg_struct *args_aster = &args;
+     //   struct arg_struct *args_aster = &args;
         
         char* mensaje = "* OK Bienvenido IMAP4rev1 Fing \n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
@@ -473,7 +476,7 @@ void main()
         if(DEBUG) printf("[main-%d] Enviado mensaje de bienvenida al usuario...\n", socket_to_client);
         
         if(DEBUG) printf("[main-%d] Creando thread para el cliente...\n", socket_to_client);
-        pthread_create(&thr, NULL, (void*) aux, args_aster);
+        pthread_create(&thr, NULL, (void*) aux, args);
         
         //primitiva CLOSE
         // close(socket_to_client);
