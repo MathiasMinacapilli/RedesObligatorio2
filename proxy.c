@@ -12,6 +12,8 @@
 #include <errno.h>
 #include <sys/time.h>
 
+#define DEBUG 1
+
 #define PORT 3490
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
@@ -111,11 +113,20 @@ void IMAP_cliente(struct sock* sockets){
     int received_data_size;
     int encontre_bye = 0;
     while(encontre_bye == 0){
+        if(DEBUG) printf("[IMAP_cliente-%d] Recibiendo datos del IMAP...\n", client_socket);
         received_data_size = recv(socket_IMAP, data, data_size, 0);
+        if(DEBUG) printf("[IMAP_cliente-%d] Recibidos datos del IMAP...\n", client_socket);
+        
         printf("Recibido del IMAP (%d bytes): %s\n", received_data_size, data);
+        
+        if(DEBUG) printf("[IMAP_cliente-%d] Enviando datos del IMAP al cliente...\n", client_socket);
         send(client_socket, data, received_data_size, 0);
+        if(DEBUG) printf("[IMAP_cliente-%d] Enviados datos del IMAP al cliente...\n", client_socket);
+        
         printf("Enviado al cliente (%d bytes): %s\n", received_data_size, data);
+        
         if(strstr(data, "* BYE") != NULL){
+            if(DEBUG) printf("[IMAP_cliente-%d] IMAP cerró la conexión...\n", client_socket);
             encontre_bye = 1;
         }
     }
@@ -128,9 +139,16 @@ void Cliente_IMAP(struct sock* sockets){
     int data_size = MAX_MSG_SIZE;
     int received_data_size;
     while(/*no se cerro conexion?*/1){
+        if(DEBUG) printf("[Cliente_IMAP-%d] Recibiendo datos del cliente...\n", client_socket);
         received_data_size = recv(client_socket, data, data_size, 0);
+        if(DEBUG) printf("[Cliente_IMAP-%d] Recibidos datos del cliente...\n", client_socket);
+        
         printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
+        
+        if(DEBUG) printf("[Cliente_IMAP-%d] Enviando datos del cliente al IMAP...\n", client_socket);
         send(socket_IMAP, data, received_data_size,0);
+        if(DEBUG) printf("[Cliente_IMAP-%d] Enviados datos del cliente al IMAP...\n", client_socket);
+        
         printf("Enviado al IMAP (%d bytes): %s\n", received_data_size, data);
     }  
 }
@@ -153,14 +171,15 @@ char* getIP(char* udp_respuesta){
     for(int k=i; k<j; k++){
         ip[k-i] = source[k];        
     }
-    printf("ADENTRO DE LA FUNCION GET IP\n");
-    printf("%s",ip);
+    
+    if(DEBUG) printf("[getIP] Obteniendo la IP de la respuesta del info_server...\n");
+    
     char* devolver = malloc(17);
     for(int iter=0; iter<17; iter++){
         devolver[iter] = ip[iter];
     }
-    printf("IMPRIMO LO QUE DEVUELVO adentro FUNCION\n");
-    printf("%s",devolver);
+    
+    if(DEBUG) printf("[getIP] IP obtenida...\n");
     return (devolver);
 }
 
@@ -192,7 +211,11 @@ void *aux(struct arg_struct *args){
                 sizeof(timeout_client)) < 0)
         error("setsockopt failed\n");
         
+        if(DEBUG) printf("[aux-%d] Recibiendo datos del cliente...\n", args->socket_to_client);
+        
         int received_data_size = recv(args->socket_to_client, data, data_size, 0);
+        
+        if(DEBUG) printf("[aux-%d] Datos recibidos del cliente...\n", args->socket_to_client);
 
         //si el socket esta cerrado cuando es 0
         if(received_data_size == -1){ 
@@ -200,10 +223,15 @@ void *aux(struct arg_struct *args){
             //Si Cliente no se loguea y queda inactivo, cierro la conexion, libero data y cierro
             char* disconnect_por_inactividad = "* BYE Disconnected for inactivity.\n";
             int size_disconnect = strlen(disconnect_por_inactividad);
+            
+            if(DEBUG) printf("[aux-%d] Se desconectará el socket con el cliente por inactividad...\n", args->socket_to_client);
+            
             send(args->socket_to_client, disconnect_por_inactividad, size_disconnect, 0);
+            
+            if(DEBUG) printf("[aux-%d] Enviado mensaje de desconexión...\n", args->socket_to_client);
+            
             free(data);
             close(args->socket_to_client);
-            printf("Socket cerrado\n");
             //pthread_cancel(args->thr);
             pthread_exit(args->thr);
         }
@@ -211,9 +239,8 @@ void *aux(struct arg_struct *args){
         // Ejecutar procesos si no fue cerrado el socket
         if(is_closed == 0) {   //sino se quedaria bloqueado en el send que es bloqueante
 
-            printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
+            printf("[aux-%d] Recibido del cliente (%d bytes): %s\n", args->socket_to_client, received_data_size, data);
 
-            
             //Aca hay que buscar en lo recibido un nombre de usuario, chequear que si es un mensaje roto me de algo para que le info_server responda "NO"
             //char* mensaje = buscar_nombre_usuario(data);
 
@@ -229,12 +256,12 @@ void *aux(struct arg_struct *args){
             //SO_RCVTIMEO	      set timeout value	for input
             if (setsockopt (udp_socket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout,
                     sizeof(timeout)) < 0)
-            error("setsockopt failed\n");
+                error("setsockopt failed\n");
 
             //SO_SNDTIMEO	      set timeout value	for output
             if (setsockopt (udp_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
                     sizeof(timeout)) < 0)
-            error("setsockopt failed\n");
+                error("setsockopt failed\n");
         
             struct addrinfo hints, *res;
             hints.ai_family = AF_INET;
@@ -250,18 +277,22 @@ void *aux(struct arg_struct *args){
             char* udp_respuesta = malloc(MAX_MSG_SIZE);
             int recibi = 0;
             while(cantidad_pqts_enviado < 3 && recibi == 0){
-                printf("Enviando paquete a info_server\n");
+                
+                if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
+                
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
-                printf(udp_respuesta);
+                
                 if(udp_tamanio_recibido == -1) { 
                     cantidad_pqts_enviado++;
+                    if(DEBUG) printf("[aux-%d] Fallo la respuesta del info_server...\n", args->socket_to_client);
                 } else {
                     recibi = 1;
+                    if(DEBUG) printf("[aux-%d] Recibida respuesta del info_server...\n", args->socket_to_client);
                 }
             }
             if(cantidad_pqts_enviado == 3){     //Si envie el paquete al info_server 3 veces y no responde, asumo que esta caido
-                printf("Socket cerrado\n");
+                if(DEBUG) printf("[aux-%d] No se pudo conectar con el info_server, cerrando la conexión...\n", args->socket_to_client);
                 close(args->socket_to_client);
                 pthread_exit(args->thr);                
             }
@@ -270,23 +301,33 @@ void *aux(struct arg_struct *args){
 
 
             if(udp_respuesta[0] == 'N'){            //Si la respuesta arranca con N es porque me responde NO
-                printf("Entre al if NO\n");
+                if(DEBUG) printf("[aux-%d] No existe el usuario ingresado (respuesta del info_server)...\n", args->socket_to_client);
                 if(estoy_conectado_a_IMAP == 0){
-                    printf("ENTRE AL IF DE NO ESTOY CONECTADO AL IMAP\n");
+                    if(DEBUG) printf("[aux-%d] No estoy conectado a IMAP, contectando...\n", args->socket_to_client);
                     //Si no estoy conectado, me conecto a IMAP por defecto (IMAP1)
                     estoy_conectado_a_IMAP = 1;
                     socket_IMAP = conectarse_IMAP(IP_IMAP1);
                 }
+                
                 //Envio el mensaje recibido al IMAP
+                if(DEBUG) printf("[aux-%d] Enviando mensaje al IMAP...\n", args->socket_to_client);
                 send(socket_IMAP, data, received_data_size, 0);
+                if(DEBUG) printf("[aux-%d] Mensaje enviado...\n", args->socket_to_client);
+                
                 //Recibo la respuesta del IMAP
+                if(DEBUG) printf("[aux-%d] Recibiendo datos del IMAP...\n", args->socket_to_client);
                 received_data_size = recv(socket_IMAP, data, data_size, 0);
+                if(DEBUG) printf("[aux-%d] Datos recibidos...\n", args->socket_to_client);
+                
                 //Reenvio al cliente la respuesta
+                if(DEBUG) printf("[aux-%d] Reenviando respuesta del IMAP al cliente...\n", args->socket_to_client);
                 send(args->socket_to_client, data, received_data_size, 0);
+                if(DEBUG) printf("[aux-%d] Reenvio completado...\n", args->socket_to_client);
+                
                 printf("Enviado al cliente (%d bytes): %s\n", received_data_size, data);
-                printf("ROMPO DESPUES DE ESTO?");                
+                
                 if (strstr(data, "* BYE") != NULL){
-                    printf("PARSIE EL *BYEEEEEEE");
+                    if(DEBUG) printf("[aux-%d] Cerrando la conexión con el cliente, el IMAP se despidió...\n", args->socket_to_client);
                     //Si el IMAP cerro la conexion, libero data y cierro
                     free(data);
                     close(socket_IMAP);
@@ -297,31 +338,48 @@ void *aux(struct arg_struct *args){
                 }
             }
             else{
-                printf("ENTRE PAL ELSE\n");
+                if(DEBUG) printf("[aux-%d] Existe usuario en el sistema...\n", args->socket_to_client);
+                
                 //Si el info_server dio alguna respuesta
+                if(DEBUG) printf("[aux-%d] Obteniendo IP del IMAP de la respuesta del info_server...\n", args->socket_to_client);
                 char* IP_IMAP = getIP(udp_respuesta);
-                printf("%s",IP_IMAP);
+                if(DEBUG) printf("[aux-%d] IP obtenida: %s...\n", args->socket_to_client, IP_IMAP);
                 //char* IP_IMAP = "192.168.56.101";
+                
                 if(estoy_conectado_a_IMAP == 0){
                     //Si no estoy conectado a ningun IMAP, me conecto al que me corresponde
+                    if(DEBUG) printf("[aux-%d] Conectandome al servidor IMAP...\n", args->socket_to_client);
                     estoy_conectado_a_IMAP = 1;
                     socket_IMAP = conectarse_IMAP(IP_IMAP);
+                    if(DEBUG) printf("[aux-%d] Conectado...\n", args->socket_to_client);
                 } else {
                     if(IP_IMAP != IP_IMAP1){
                         //Si estoy conectado, pero no al IMAP que me corresponde
                         close(socket_IMAP);
+                        if(DEBUG) printf("[aux-%d] Conectandome al servidor IMAP...\n", args->socket_to_client);
                         socket_IMAP = conectarse_IMAP(IP_IMAP);
+                        if(DEBUG) printf("[aux-%d] Conectado...\n", args->socket_to_client);
                     }
                 }
-                 //Envio el mensaje recibido al IMAP
+                
+                //Envio el mensaje recibido al IMAP
+                if(DEBUG) printf("[aux-%d] Enviando mensaje al IMAP...\n", args->socket_to_client);
                 send(socket_IMAP, data, received_data_size, 0);
+                if(DEBUG) printf("[aux-%d] Enviado mensaje...\n", args->socket_to_client);
+                
                 //Recibo la respuesta del IMAP
+                if(DEBUG) printf("[aux-%d] Esperando respuesta del IMAP...\n", args->socket_to_client);
                 received_data_size = recv(socket_IMAP, data, data_size, 0);
+                if(DEBUG) printf("[aux-%d] Recibida respuesta del IMAP...\n", args->socket_to_client);
+                
                 //Reenvio al cliente la respuesta
+                if(DEBUG) printf("[aux-%d] Enviando respuesta del IMAP al cliente...\n", args->socket_to_client);
                 send(args->socket_to_client, data, data_size, 0);
+                if(DEBUG) printf("[aux-%d] Enviada respuesta del IMAP al cliente...\n", args->socket_to_client);
+                
                 if(strstr(data, "Logged in") != NULL){
                     //Si me loguee bien
-                    
+                    if(DEBUG) printf("[aux-%d] Login exitoso...\n", args->socket_to_client);
                     estoy_logueado = 1;
 
                     //Creo estructuras para pasarle los sockets a los threads
@@ -329,21 +387,29 @@ void *aux(struct arg_struct *args){
                     sockets.client_socket = args->socket_to_client;
                     sockets.socket_IMAP = socket_IMAP;
                     struct sock *sockets_aster = &sockets;
-                    printf("CREANDO THREADS\n");
+                    
+                    if(DEBUG) printf("[aux-%d] Creando threads...\n", args->socket_to_client);
+                    
                     pthread_t thr1;
                     pthread_t thr2;
                     void* retval;
+                    
                     //Creo los threads que van a servir para comunicar el cliente con el IMAP
+                    if(DEBUG) printf("[aux-%d] Ejecutando threads...\n", args->socket_to_client);
                     pthread_create(&thr1, NULL, (void*) Cliente_IMAP, sockets_aster);
                     pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster);
-                    printf("ANTES DEL JOIN\n");
+                    
+                    if(DEBUG) printf("[aux-%d] Realizando el join del thread 2...\n", args->socket_to_client);
                     pthread_join(thr2, (void*) retval);
-                    printf("DESPUES DEL JOIN\n");
+                    
+                    if(DEBUG) printf("[aux-%d] Finalizado join del thread 2...\n", args->socket_to_client);
                     pthread_cancel(thr1);
-                    printf("DESPUES DEL CANCEL\n");
+                    if(DEBUG) printf("[aux-%d] Terminado el thread 1...\n", args->socket_to_client);
                 } else {
+                    if(DEBUG) printf("[aux-%d] Login no exitoso...\n", args->socket_to_client);
                     if(strstr(data, "* BYE") != NULL){
                         //Si el servidor IMAP cerro la conexion
+                        if(DEBUG) printf("[aux-%d] IMAP cerró la conexión...\n", args->socket_to_client);
                         free(data);
                         close(socket_IMAP);
                         close(args->socket_to_client);
@@ -370,21 +436,21 @@ void *aux(struct arg_struct *args){
 
 void main()
 {  
-   //primitiva SOCKET
-   int welcome_socket = socket(AF_INET, SOCK_STREAM, 0);
-   
-   //primitiva BIND
-   struct sockaddr_in server_addr;
-   socklen_t server_addr_size = sizeof server_addr;
-   server_addr.sin_family = AF_INET;
-   server_addr.sin_port = htons(PORT);
-   server_addr.sin_addr.s_addr = inet_addr(MY_IP);  
-   bind(welcome_socket, (struct sockaddr*)&server_addr, server_addr_size);
+    //primitiva SOCKET
+    int welcome_socket = socket(AF_INET, SOCK_STREAM, 0);
     
-   
-   //primitiva LISTEN
-   listen(welcome_socket, MAX_QUEUE);
+    //primitiva BIND
+    struct sockaddr_in server_addr;
+    socklen_t server_addr_size = sizeof server_addr;
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr(MY_IP);  
+    bind(welcome_socket, (struct sockaddr*)&server_addr, server_addr_size);
+    
+    //primitiva LISTEN
+    listen(welcome_socket, MAX_QUEUE);
 
+    if(DEBUG) printf("[main-%d] Servidor escuchando en el puerto %d...\n", welcome_socket, PORT);
      
     while (1) {
         //primitiva ACCEPT
@@ -392,6 +458,8 @@ void main()
         struct sockaddr_in client_addr;
         socklen_t client_addr_size = sizeof client_addr;
         int socket_to_client = accept(welcome_socket, (struct sockaddr *)&client_addr, &client_addr_size);
+        
+        if(DEBUG) printf("[main-%d] Cliente conectado en el socket %d\n", socket_to_client, socket_to_client);
         
         struct arg_struct args;
         args.socket_to_client = socket_to_client;
@@ -401,6 +469,10 @@ void main()
         
         char* mensaje = "Bienvenido!\n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
+        
+        if(DEBUG) printf("[main-%d] Enviado mensaje de bienvenida al usuario...\n", socket_to_client);
+        
+        if(DEBUG) printf("[main-%d] Creando thread para el cliente...\n", socket_to_client);
         pthread_create(&thr, NULL, (void*) aux, args_aster);
         
         //primitiva CLOSE
