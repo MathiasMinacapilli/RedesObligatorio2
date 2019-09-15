@@ -287,34 +287,8 @@ void *aux(struct arg_struct *args){
             while(cantidad_pqts_enviado < 3 && recibi == 0){
                 
                 if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
-                printf("ESTE ES EL MENSAJE QUE ESTOY MANDANDO:");
-                printf(udp_mensaje);
-                printf("\n");
-                printf("ESTE ES AL SOCKET QUE ESTOY MANDANDO:");
-                printf("%d", udp_socket);
-                printf("\n");
-                printf("ESTE ES A DONDE ESTOY MANDANDO:");
-                printf("%d", res->ai_addr);
-                printf("\n");
-                printf("ESTE ES addrlen MANDANDO:");
-                printf("%d", res->ai_addrlen);
-                printf("\n");
-                printf("ESTE ES strlen MANDANDO:");
-                printf("%ld", strlen(udp_mensaje));
-                printf("\n");
-
-                printf("DATOS DE HINTS------------------------ : ");
-                printf("%d", hints.ai_addrlen);
-                printf("\n");
-
                 
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
-
-                if (sent_msg_size == -1)
-                {
-                    printf("ERROR-----------------------------------------\n");
-                fprintf(stderr, "recv: %s (%d)\n", strerror(errno), errno);printf("ERROR-----------------------------------------\n");
-                }
                 
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
                 
