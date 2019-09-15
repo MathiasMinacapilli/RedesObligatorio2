@@ -22,7 +22,7 @@
 #define IP_INFO_SERVER "localhost"
 #define PUERTO_INFO_SERVER "12000"
 #define PORT_IMAP "143"
-#define IP_IMAP1 "192.168.56.101"
+#define IP_IMAP1 "192.168.56.102"
 
 #if !defined(NULL)
     #define NULL ((void*)0)
@@ -128,8 +128,7 @@ void IMAP_cliente(struct sock* sockets){
         if(strstr(data, "* BYE") != NULL){
             if(DEBUG) printf("[IMAP_cliente-%d] IMAP cerró la conexión...\n", client_socket);
             encontre_bye = 1;
-            void * algo;
-            pthread_exit(algo);
+            pthread_exit(NULL);
         }
     }
 }
@@ -235,7 +234,7 @@ void *aux(struct arg_struct *args){
             free(data);
             close(args->socket_to_client);
             //pthread_cancel(args->thr);
-            pthread_exit(args->thr);
+            pthread_exit(NULL);
         }
 
         // Ejecutar procesos si no fue cerrado el socket
@@ -297,7 +296,7 @@ void *aux(struct arg_struct *args){
             if(cantidad_pqts_enviado == 3){     //Si envie el paquete al info_server 3 veces y no responde, asumo que esta caido
                 if(DEBUG) printf("[aux-%d] No se pudo conectar con el info_server, cerrando la conexión...\n", args->socket_to_client);
                 close(args->socket_to_client);
-                pthread_exit(args->thr);                
+                pthread_exit(NULL);                
             }
 
             printf("%c%c",udp_respuesta[0], udp_respuesta[1]);
@@ -337,7 +336,7 @@ void *aux(struct arg_struct *args){
                     close(args->socket_to_client);
                     printf("Socket cerrado\n");
                     //pthread_cancel(args->thr);
-                    pthread_exit(args->thr);
+                    pthread_exit(NULL);
                 }
             }
             else{
@@ -403,7 +402,7 @@ void *aux(struct arg_struct *args){
                     pthread_create(&thr2, NULL, (void*) IMAP_cliente, sockets_aster);
                     
                     if(DEBUG) printf("[aux-%d] Realizando el join del thread 2...\n", args->socket_to_client);
-                    pthread_join(thr2, (void*) retval);
+                    pthread_join(thr2, NULL);
                     
                     if(DEBUG) printf("[aux-%d] Finalizado join del thread 2...\n", args->socket_to_client);
                     pthread_cancel(thr1);
@@ -417,7 +416,7 @@ void *aux(struct arg_struct *args){
                         close(socket_IMAP);
                         close(args->socket_to_client);
                         printf("Socket cerrado\n");
-                        pthread_exit(args->thr);
+                        pthread_exit(NULL);
                     }
                 }
             }            
@@ -432,7 +431,7 @@ void *aux(struct arg_struct *args){
     close(socket_IMAP);
     close(args->socket_to_client);
     printf("Socket cerrado\n");
-    pthread_exit(args->thr);
+    pthread_exit(NULL);
     
 } 
 
