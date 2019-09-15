@@ -14,7 +14,7 @@
 
 #define DEBUG 1
 
-#define PORT 3490
+#define PORT 3499
 #define MY_IP "127.0.0.1"
 #define MAX_QUEUE 10
 #define MAX_MSG_SIZE 1024
@@ -59,12 +59,12 @@ char* get_usuario_to_info_server(char* message){
         j++;
     }
     int largo = j-iter;
-    char* usuario = malloc(largo);
+    char* usuario = malloc(largo+1);
     for(int k=iter; k<j; k++){
         usuario[k-iter] = source[k];
     }
     char *mensaje = malloc(largo+10);
-    char *string_get_user = malloc(9);
+    char *string_get_user = malloc(10);
     string_get_user = "GET_USER ";
     for(int x=0; x<9; x++){
         mensaje[x] = string_get_user[x];
@@ -79,6 +79,9 @@ char* get_usuario_to_info_server(char* message){
     else {
         return mensaje;
     }
+    /*char* devol = malloc(17);
+    devol = "GET_USER matias\n";
+    return devol;*/
 }
 
 
@@ -191,6 +194,8 @@ void *aux(struct arg_struct *args){
     int estoy_logueado = 0;
     int socket_IMAP;
     int cantidad_pqts_enviado;
+
+
     while(is_closed == 0 && estoy_logueado == 0){
         cantidad_pqts_enviado = 0;
         //Recibo un mensaje del cliente        
@@ -227,7 +232,7 @@ void *aux(struct arg_struct *args){
             
             if(DEBUG) printf("[aux-%d] Se desconectará el socket con el cliente por inactividad...\n", args->socket_to_client);
             
-            send(args->socket_to_client, disconnect_por_inactividad, size_disconnect, 0);
+            send(args->socket_to_client, disconnect_por_inactividad, size_disconnect+1, 0);
             
             if(DEBUG) printf("[aux-%d] Enviado mensaje de desconexión...\n", args->socket_to_client);
             
@@ -263,8 +268,10 @@ void *aux(struct arg_struct *args){
             if (setsockopt (udp_socket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout,
                     sizeof(timeout)) < 0)
                 error("setsockopt failed\n");
-        
-            struct addrinfo hints, *res;
+                   
+
+            struct addrinfo hints, * res;
+            memset(&hints,0, sizeof(struct addrinfo));
             hints.ai_family = AF_INET;
             hints.ai_socktype = SOCK_DGRAM;
             getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
@@ -280,8 +287,34 @@ void *aux(struct arg_struct *args){
             while(cantidad_pqts_enviado < 3 && recibi == 0){
                 
                 if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
+                printf("ESTE ES EL MENSAJE QUE ESTOY MANDANDO:");
+                printf(udp_mensaje);
+                printf("\n");
+                printf("ESTE ES AL SOCKET QUE ESTOY MANDANDO:");
+                printf("%d", udp_socket);
+                printf("\n");
+                printf("ESTE ES A DONDE ESTOY MANDANDO:");
+                printf("%d", res->ai_addr);
+                printf("\n");
+                printf("ESTE ES addrlen MANDANDO:");
+                printf("%d", res->ai_addrlen);
+                printf("\n");
+                printf("ESTE ES strlen MANDANDO:");
+                printf("%ld", strlen(udp_mensaje));
+                printf("\n");
+
+                printf("DATOS DE HINTS------------------------ : ");
+                printf("%d", hints.ai_addrlen);
+                printf("\n");
+
                 
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
+
+                if (sent_msg_size == -1)
+                {
+                    printf("ERROR-----------------------------------------\n");
+                fprintf(stderr, "recv: %s (%d)\n", strerror(errno), errno);printf("ERROR-----------------------------------------\n");
+                }
                 
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
                 
@@ -290,12 +323,15 @@ void *aux(struct arg_struct *args){
                     if(DEBUG) printf("[aux-%d] Fallo la respuesta del info_server...\n", args->socket_to_client);
                 } else {
                     recibi = 1;
+                    close(udp_socket);
                     if(DEBUG) printf("[aux-%d] Recibida respuesta del info_server...\n", args->socket_to_client);
+                    
                 }
             }
             if(cantidad_pqts_enviado == 3){     //Si envie el paquete al info_server 3 veces y no responde, asumo que esta caido
                 if(DEBUG) printf("[aux-%d] No se pudo conectar con el info_server, cerrando la conexión...\n", args->socket_to_client);
                 close(args->socket_to_client);
+                close(udp_socket);
                 pthread_exit(NULL);                
             }
 
@@ -385,10 +421,15 @@ void *aux(struct arg_struct *args){
                     estoy_logueado = 1;
 
                     //Creo estructuras para pasarle los sockets a los threads
-                    struct sock sockets;
+                    /*struct sock sockets;
                     sockets.client_socket = args->socket_to_client;
                     sockets.socket_IMAP = socket_IMAP;
-                    struct sock *sockets_aster = &sockets;
+                    struct sock *sockets_aster = &sockets;*/
+
+                    int tamanio_sock = sizeof(struct sock);
+                    struct sock* sockets_aster = malloc(tamanio_sock);
+                    sockets_aster->client_socket = args->socket_to_client;
+                    sockets_aster->socket_IMAP = socket_IMAP;
                     
                     if(DEBUG) printf("[aux-%d] Creando threads...\n", args->socket_to_client);
                     
@@ -468,7 +509,6 @@ void main()
         args->thr = thr;
 
      //   struct arg_struct *args_aster = &args;
-        
         char* mensaje = "* OK Bienvenido IMAP4rev1 Fing \n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
         
