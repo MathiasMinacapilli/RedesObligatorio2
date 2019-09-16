@@ -36,6 +36,7 @@ struct arg_struct {
 struct sock{
     int client_socket;
     int socket_IMAP;
+    pthread_t thread_IMAP_cliente;
 };
 
 
@@ -139,6 +140,7 @@ void IMAP_cliente(struct sock* sockets){
 void Cliente_IMAP(struct sock* sockets){
     int socket_IMAP = sockets->socket_IMAP;
     int client_socket = sockets->client_socket;
+    pthread_t thread_a_cerrar = sockets->thread_IMAP_cliente;
     char* data = malloc(MAX_MSG_SIZE);
     int data_size = MAX_MSG_SIZE;
     int received_data_size;
@@ -146,6 +148,12 @@ void Cliente_IMAP(struct sock* sockets){
         if(DEBUG) printf("[Cliente_IMAP-%d] Recibiendo datos del cliente...\n", client_socket);
         received_data_size = recv(client_socket, data, data_size, 0);
         if(DEBUG) printf("[Cliente_IMAP-%d] Recibidos datos del cliente...\n", client_socket);
+	if (received_data_size == 0){            
+            pthread_cancel(thread_a_cerrar);            
+            while(1){
+
+            }
+        }
         
         printf("Recibido del cliente (%d bytes): %s\n", received_data_size, data);
         
@@ -424,16 +432,19 @@ void *aux(struct arg_struct *args){
                     sockets.socket_IMAP = socket_IMAP;
                     struct sock *sockets_aster = &sockets;*/
 
-                    int tamanio_sock = sizeof(struct sock);
-                    struct sock* sockets_aster = malloc(tamanio_sock);
-                    sockets_aster->client_socket = args->socket_to_client;
-                    sockets_aster->socket_IMAP = socket_IMAP;
+
                     
                     if(DEBUG) printf("[aux-%d] Creando threads...\n", args->socket_to_client);
                     
                     pthread_t thr1;
                     pthread_t thr2;
                     void* retval;
+
+                    int tamanio_sock = sizeof(struct sock);
+                    struct sock* sockets_aster = malloc(tamanio_sock);
+                    sockets_aster->client_socket = args->socket_to_client;
+                    sockets_aster->socket_IMAP = socket_IMAP;
+                    sockets_aster->thread_IMAP_cliente = thr2;
                     
                     //Creo los threads que van a servir para comunicar el cliente con el IMAP
                     if(DEBUG) printf("[aux-%d] Ejecutando threads...\n", args->socket_to_client);
