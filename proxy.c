@@ -274,6 +274,11 @@ void *aux(struct arg_struct *args){
             memset(&hints,0, sizeof(struct addrinfo));
             hints.ai_family = AF_INET;
             hints.ai_socktype = SOCK_DGRAM;
+            hints.ai_flags = AI_PASSIVE;    /* For wildcard IP address */
+            hints.ai_protocol = 0;          /* Any protocol */
+            hints.ai_canonname = NULL;
+            hints.ai_addr = NULL;
+            hints.ai_next = NULL;
             getaddrinfo(IP_INFO_SERVER, PUERTO_INFO_SERVER, &hints, &res);
             
             //char* mensaje = "GET-USER matias\n";
@@ -287,36 +292,17 @@ void *aux(struct arg_struct *args){
             while(cantidad_pqts_enviado < 3 && recibi == 0){
                 
                 if(DEBUG) printf("[aux-%d] Enviando paquete a info_server...\n", args->socket_to_client);
-                printf("ESTE ES EL MENSAJE QUE ESTOY MANDANDO:");
-                printf(udp_mensaje);
-                printf("\n");
-                printf("ESTE ES AL SOCKET QUE ESTOY MANDANDO:");
-                printf("%d", udp_socket);
-                printf("\n");
-                printf("ESTE ES A DONDE ESTOY MANDANDO:");
-                printf("%d", res->ai_addr);
-                printf("\n");
-                printf("ESTE ES addrlen MANDANDO:");
-                printf("%d", res->ai_addrlen);
-                printf("\n");
-                printf("ESTE ES strlen MANDANDO:");
-                printf("%ld", strlen(udp_mensaje));
-                printf("\n");
-
-                printf("DATOS DE HINTS------------------------ : ");
-                printf("%d", hints.ai_addrlen);
-                printf("\n");
-
+                
                 
                 int sent_msg_size = sendto(udp_socket, udp_mensaje, strlen(udp_mensaje)+1, 0, res->ai_addr, res->ai_addrlen);
-
-                if (sent_msg_size == -1)
-                {
-                    printf("ERROR-----------------------------------------\n");
-                fprintf(stderr, "recv: %s (%d)\n", strerror(errno), errno);printf("ERROR-----------------------------------------\n");
+                if (sent_msg_size == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al enviarle un mensaje al info_server: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
                 }
                 
                 int udp_tamanio_recibido = recv(udp_socket, udp_respuesta, MAX_MSG_SIZE, 0);
+                if (udp_tamanio_recibido == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al recibir un mensaje del info_server: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                }
                 
                 if(udp_tamanio_recibido == -1) { 
                     cantidad_pqts_enviado++;
@@ -349,18 +335,24 @@ void *aux(struct arg_struct *args){
                 
                 //Envio el mensaje recibido al IMAP
                 if(DEBUG) printf("[aux-%d] Enviando mensaje al IMAP...\n", args->socket_to_client);
-                send(socket_IMAP, data, received_data_size, 0);
-                if(DEBUG) printf("[aux-%d] Mensaje enviado...\n", args->socket_to_client);
+                int socket_IMAP_send = send(socket_IMAP, data, received_data_size, 0);
+                if (socket_IMAP_send == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al enviarle un mensaje al IMAP: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Mensaje enviado...\n", args->socket_to_client);
                 
                 //Recibo la respuesta del IMAP
                 if(DEBUG) printf("[aux-%d] Recibiendo datos del IMAP...\n", args->socket_to_client);
                 received_data_size = recv(socket_IMAP, data, data_size, 0);
-                if(DEBUG) printf("[aux-%d] Datos recibidos...\n", args->socket_to_client);
+                if (received_data_size == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al recibir un mensaje del IMAP: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Datos recibidos...\n", args->socket_to_client);
                 
                 //Reenvio al cliente la respuesta
                 if(DEBUG) printf("[aux-%d] Reenviando respuesta del IMAP al cliente...\n", args->socket_to_client);
-                send(args->socket_to_client, data, received_data_size, 0);
-                if(DEBUG) printf("[aux-%d] Reenvio completado...\n", args->socket_to_client);
+                int socket_to_client_send_tam = send(args->socket_to_client, data, received_data_size, 0);
+                if (socket_to_client_send_tam == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al enviarle un mensaje al cliente: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Reenvio completado...\n", args->socket_to_client);
                 
                 printf("Enviado al cliente (%d bytes): %s\n", received_data_size, data);
                 
@@ -402,18 +394,24 @@ void *aux(struct arg_struct *args){
                 
                 //Envio el mensaje recibido al IMAP
                 if(DEBUG) printf("[aux-%d] Enviando mensaje al IMAP...\n", args->socket_to_client);
-                send(socket_IMAP, data, received_data_size, 0);
-                if(DEBUG) printf("[aux-%d] Enviado mensaje...\n", args->socket_to_client);
+                int socket_IMAP_send = send(socket_IMAP, data, received_data_size, 0);
+                if (socket_IMAP_send == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al enviarle un mensaje al IMAP: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Enviado mensaje...\n", args->socket_to_client);
                 
                 //Recibo la respuesta del IMAP
                 if(DEBUG) printf("[aux-%d] Esperando respuesta del IMAP...\n", args->socket_to_client);
                 received_data_size = recv(socket_IMAP, data, data_size, 0);
-                if(DEBUG) printf("[aux-%d] Recibida respuesta del IMAP...\n", args->socket_to_client);
+                if (received_data_size == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al recibir un mensaje del IMAP: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Recibida respuesta del IMAP...\n", args->socket_to_client);
                 
                 //Reenvio al cliente la respuesta
                 if(DEBUG) printf("[aux-%d] Enviando respuesta del IMAP al cliente...\n", args->socket_to_client);
-                send(args->socket_to_client, data, data_size, 0);
-                if(DEBUG) printf("[aux-%d] Enviada respuesta del IMAP al cliente...\n", args->socket_to_client);
+                int socket_to_client_send_tam = send(args->socket_to_client, data, data_size, 0);
+                if (socket_to_client_send_tam == -1) {
+                    fprintf(stderr, "[aux-%d] Ocurrió un error al enviar un mensaje al cliente: %s (%d)\n", args->socket_to_client, strerror(errno), errno);
+                } else if(DEBUG) printf("[aux-%d] Enviada respuesta del IMAP al cliente...\n", args->socket_to_client);
                 
                 if(strstr(data, "Logged in") != NULL){
                     //Si me loguee bien
@@ -488,7 +486,10 @@ void main()
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(PORT);
     server_addr.sin_addr.s_addr = inet_addr(MY_IP);  
-    bind(welcome_socket, (struct sockaddr*)&server_addr, server_addr_size);
+    if(bind(welcome_socket, (struct sockaddr*)&server_addr, server_addr_size) == -1) {
+        printf("[main] Hubo un error en el bind. Terminando el programa...");
+        exit(0);
+    }
     
     //primitiva LISTEN
     listen(welcome_socket, MAX_QUEUE);
@@ -508,9 +509,12 @@ void main()
         args->socket_to_client = socket_to_client;
         args->thr = thr;
 
-     //   struct arg_struct *args_aster = &args;
+        // struct arg_struct *args_aster = &args;
         char* mensaje = "* OK Bienvenido IMAP4rev1 Fing \n";        
         int sent_data_size = send(socket_to_client, mensaje, strlen(mensaje)+1, 0);
+        if(sent_data_size == -1) {
+            fprintf(stderr, "[main-%d] Hubo un error al enviar mensaje al cliente: %s (%d)\n", socket_to_client, strerror(errno), errno);
+        }
         
         if(DEBUG) printf("[main-%d] Enviado mensaje de bienvenida al usuario...\n", socket_to_client);
         
